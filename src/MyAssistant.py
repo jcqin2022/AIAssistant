@@ -42,11 +42,7 @@ class MyAssistant:
             context = self.executor.get_context()
             message_template = f"""Reference below context before answering：
                 {context}
-                question：{message}
-                requirements：
-                - answer the shortly
-                - keep answers concise
-                - guess the user's intent and show 3 options"""
+                question：{message}"""
             messages = [
                 SystemMessage(content=prompt),
                 *self.chat_history.get_full_history(),

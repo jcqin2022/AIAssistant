@@ -24,7 +24,7 @@ def main():
             executor = K8sExecutor(config, log)
         else:
             print("Invalid choice, defaulting to PCExecutor.")
-            executor = PCExecutor()
+            executor = PCExecutor(config, log)
         assistant.set_executor(executor)
         while True:
             user_input = input("You << ")

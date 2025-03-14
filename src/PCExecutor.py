@@ -6,6 +6,7 @@ import os
 import subprocess
 from executor import Executor
 import logging
+import json
 
 class PCExecutor(Executor):
     def __init__(self,config:dict, log: logging.Logger):
@@ -13,23 +14,20 @@ class PCExecutor(Executor):
         self.log = log
         super().__init__()
         self.update_method_list()
+        self.prompt = ""
 
     def update_method_list(self):
         self.methods[ "execute_script"] = self.execute_script
         self.methods[ "get_system"] = self.get_system
 
     def get_prompt(self):
-        prompt = self.config.get("PROMPT", None)
-        prompt = prompt + " " + (
-            "You are a versatile computer assistant capable of executing scripts on both Windows and Linux systems. "
-            "For security reasons, you are restricted to read-only operations by default. "
-            "Any script that attempts to modify or delete system files must be confirmed by the user before execution. "
-            "You can perform various tasks such as retrieving system information, listing files, checking disk usage, "
-            "and other read-only operations. "
-            "On Windows, use cmd to execute scripts, and on Linux, use bash. "
-            "Ensure that all operations are safe and do not alter the system in any way."
-        )
-        return prompt
+        if(self.prompt != ""):
+            return self.prompt
+        with open('pc_prompt.json', 'r') as file:
+            data = json.load(file)
+            prompts = data.get('PROMPTS', '')
+        self.prompt = " ".join(prompts)
+        return self.prompt
     
     def get_context(self):
         return "This is my comupter with Windows 10 system."
