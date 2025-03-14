@@ -1,0 +1,25 @@
+{
+    "MODEL_NAME":"gpt-4o",
+    "AZURE_OPENAI_ENDPOINT":"",
+    "AZURE_OPENAI_KEY":"",
+    "OPENAI_API_VERSION":"2024-05-01-preview",
+    "AZURE_DS_ENDPOINT":"",
+    "AZURE_DS_KEY":"",
+    "DS_API_VERSION":"2024-05-01-preview",
+    "PROMPT":"You are a FT View product chat robot, please answer users' questions or chat with users",
+
+    "SEARCH_SERVICE_ENDPOINT": "https://<Your Search Service Name>.search.windows.net",
+    "SEARCH_INDEX_NAME": "recipes-vectors",
+    "SEARCH_ADMIN_KEY": "",
+
+    "BING_SEARCH_SUBSCRIPTION_KEY": "",
+
+    "EMBEDDINGS_MODEL":"text-embedding-3-large",
+    "EMBEDDINGS_ENDPOINT":"",
+    "EMBEDDINGS_API_KEY":"",
+    "VERBOSE": true,
+    "LOG_FILE": "./ai_service.log",
+    "SQL_CONN_STR":"",
+    "DOCUMENTS_DIR":"./doc",
+    "MAX_HISTORY_LEN": 5
+}
