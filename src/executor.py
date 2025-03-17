@@ -8,11 +8,19 @@ class Executor:
         self.methods = {
         }
 
-    def get_prompt(self):
-        return "I am a common assistant."
+    def get_prompt(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            print(f"错误: prompt文件 {file_path} 未找到")
     
-    def get_context(self):
-        return ""
+    def get_context(self, file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            print(f"错误：context文件 {file_path} 未找到")
 
     def get_tool_definition(self):
         raise NotImplementedError("Subclasses should implement this method.")

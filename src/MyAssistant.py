@@ -40,8 +40,7 @@ class MyAssistant:
         try:
             prompt = self.executor.get_prompt()
             context = self.executor.get_context()
-            message_template = f"""Reference below context before answering：
-                {context}
+            message_template = f"""context：{context}
                 question：{message}"""
             messages = [
                 SystemMessage(content=prompt),

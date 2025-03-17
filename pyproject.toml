@@ -5,7 +5,7 @@ description = "AI demo."
 authors = [
     {name = "Alic", email = "alicqin@hotmail.com"},
 ]
-dependencies = ["langchain>=0.3.19", "langchain-openai>=0.3.7", "pandas>=2.2.3", "numpy>=2.2.3", "langchain-community>=0.3.19"]
+dependencies = ["langchain>=0.3.19", "langchain-openai>=0.3.7", "pandas>=2.2.3", "numpy>=2.2.3", "langchain-community>=0.3.19", "langchain-deepseek>=0.1.2", "azure-ai-inference>=1.0.0b9"]
 requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "MIT"}

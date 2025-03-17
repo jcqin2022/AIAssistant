@@ -24,14 +24,14 @@ class K8sExecutor(Executor):
     def get_prompt(self):
         if(self.prompt != ""):
             return self.prompt
-        with open('k8s_prompt.json', 'r') as file:
-            data = json.load(file)
-            prompts = data.get('PROMPTS', '')
-        self.prompt = " ".join(prompts)
+        self.prompt = super().get_prompt('k8s_prompt.md')
         return self.prompt
     
     def get_context(self):
-        return "This is a kubernets cluster hosted in AWS cloud."
+        if(self.context != ""):
+            return self.context
+        self.context = super().get_prompt('k8s_context.md')
+        return self.context
 
     def get_tool_definition(self):
         return [{

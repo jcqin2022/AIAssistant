@@ -15,6 +15,7 @@ class PCExecutor(Executor):
         super().__init__()
         self.update_method_list()
         self.prompt = ""
+        self.context = ""
 
     def update_method_list(self):
         self.methods[ "execute_script"] = self.execute_script
@@ -23,14 +24,14 @@ class PCExecutor(Executor):
     def get_prompt(self):
         if(self.prompt != ""):
             return self.prompt
-        with open('pc_prompt.json', 'r') as file:
-            data = json.load(file)
-            prompts = data.get('PROMPTS', '')
-        self.prompt = " ".join(prompts)
+        self.prompt = super().get_prompt('pc_prompt.md')
         return self.prompt
     
     def get_context(self):
-        return "This is my comupter with Windows 10 system."
+        if(self.context != ""):
+            return self.context
+        self.context = super().get_prompt('pc_context.md')
+        return self.context
 
     def get_tool_definition(self):
         return [{

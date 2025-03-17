@@ -5,6 +5,8 @@ from chat_history import ChatHistory
 from .logger import setup_logger
 from src import __version__
 import json
+from .deepseek_langchain import ask
+from .deepseek_azure import ask2
 
 def main():
     try:
@@ -13,6 +15,8 @@ def main():
             config = json.load(config_file)
         if(config is None):
             raise Exception("Config file not found")
+        ask(config)
+        ask2(config)
         log = setup_logger(config)
         log.info(f"Initializing AI backend service version {__version__}")
         chat_history = ChatHistory(config)
