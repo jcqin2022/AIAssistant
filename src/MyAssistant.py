@@ -7,34 +7,29 @@
 
 import os
 import json
-from openai import AzureOpenAI
+
 import inspect
 import logging
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from chat_history import ChatHistory
-from executor import Executor
+from excutor.executor import Executor
+from model.base_model import BaseModel
 
 class MyAssistant:
     def __init__(self, chat_history:ChatHistory, config:dict, log: logging.Logger):
         self.config = config
         self.log = log
         self.chat_history = chat_history
-        self.client = None
         self.executor = None
-        self.intialize()
+        self.model = None
         self.messages = []
         self.context = ""
     
-    def intialize(self):
-        self.client = AzureOpenAI(
-            azure_endpoint=self.config["AZURE_OPENAI_ENDPOINT"],  # The base URL for your Azure OpenAI resource. e.g. "https://<your resource name>.openai.azure.com"
-            api_key=self.config["AZURE_OPENAI_KEY"],  # The API key for your Azure OpenAI resource.
-            api_version=self.config["OPENAI_API_VERSION"],  # This version supports function calling
-        )
-        self.model_name = self.config["MODEL_NAME"] # You need to ensure the version of the model you are using supports the function calling feature
-
     def set_executor(self, executor: Executor):
         self.executor = executor
+    
+    def set_model(self, model: BaseModel):
+        self.model = model
 
     def setup_messages(self, message:str):
         try:
@@ -61,13 +56,7 @@ class MyAssistant:
         # Pass the function result back to the model for further processing
         tool_definitions = self.executor.get_tool_definition()
         self.messages = self.convert_messages_for_openai(self.setup_messages(message))
-
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=self.messages,
-            tools=tool_definitions,
-            tool_choice="auto",
-        )
+        response = self.model.ask(self.messages, tool_definitions)
 
         # check if GPT wanted to call a function
         while response.choices[0].finish_reason == "tool_calls":
@@ -115,14 +104,7 @@ class MyAssistant:
             # for message in self.messages:
             #     print(message)
             # print()
-
-            response = self.client.chat.completions.create(
-                messages=self.messages,
-                tools=tool_definitions,
-                tool_choice="auto",
-                model=self.model_name,
-                temperature=0,
-            )  # get a new response from GPT where it can see the function response
+            response = self.model.ask(self.messages, tool_definitions)
 
         anwser = response.choices[0].message.content.strip()
         self.chat_history.add_user_message(message)
