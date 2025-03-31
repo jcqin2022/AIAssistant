@@ -17,8 +17,8 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def ask(self, messages: Iterable[ChatCompletionMessageParam], 
-            tools_definitions: Iterable[ChatCompletionToolParam]) -> ChatCompletion:
+    def ask(self, messages, 
+            tools_definitions) -> ChatCompletion:
         pass
 
     @abstractmethod

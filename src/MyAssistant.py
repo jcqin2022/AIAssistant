@@ -73,10 +73,8 @@ class MyAssistant:
             if self.check_args(function_to_call, function_args) is False:
                 return "Invalid number of arguments for function: " + function_name
             function_response=self.executor.execute(function_name, **function_args)
-
             print(f"Function call: {function_name} with arguments: {function_args}")
             # print(f"Return: {function_response}")
-            print()
 
             # send the info on the function call and function response to GPT
             # adding assistant response to messages

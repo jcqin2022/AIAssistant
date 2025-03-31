@@ -1,7 +1,7 @@
 # Install the following dependencies: azure.identity and azure-ai-inference
 import os
 from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.ai.inference.models import SystemMessage, UserMessage, ChatCompletionsToolChoicePreset, ChatCompletionsToolDefinition, FunctionDefinition
 from azure.core.credentials import AzureKeyCredential
 
 from .base_model import BaseModel
@@ -22,15 +22,14 @@ class DeepSeek(BaseModel):
         self.setup_model()
 
 
-    def ask(self, messages: Iterable[ChatCompletionMessageParam], 
-            tools_definitions: Iterable[ChatCompletionToolParam]) -> ChatCompletion:
+    def ask(self, messages, 
+            tools_definitions) -> ChatCompletion:
         try:
             response = self.client.complete(
                 messages=messages,
                 model = self.model_name,
                 tools=tools_definitions,
-                tool_choice="auto",
-                max_tokens=1000
+                tool_choice=ChatCompletionsToolChoicePreset.AUTO,
             )
             return response
         except Exception as e:
