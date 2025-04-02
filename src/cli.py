@@ -8,6 +8,7 @@ import json
 from .model.openai import OpenAI
 from .model.deepseek_azure import DeepSeek
 from .model.base_model import BaseModel
+from .client.math_client import MathClient
 import logging
 
 def setup_executor(assistant: MyAssistant, config: dict, log: logging.Logger):
@@ -37,6 +38,8 @@ def main():
             raise Exception("Config file not found")
         log = setup_logger(config)
         log.info(f"Initializing AI backend service version {__version__}")
+        client = MathClient(config, log)
+        client.run("请计算 (3 + 5) × 12 的结果")
         chat_history = ChatHistory(config)
         assistant = MyAssistant(chat_history, config, log)
         setup_executor(assistant, config, log)
