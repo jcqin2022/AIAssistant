@@ -14,24 +14,24 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from chat_history import ChatHistory
 from excutor.executor import Executor
 from model.base_model import BaseModel
+from assistant.base_assistant import BaseAssistant
 
-class MyAssistant:
-    def __init__(self, chat_history:ChatHistory, config:dict, log: logging.Logger):
-        self.config = config
-        self.log = log
-        self.chat_history = chat_history
+class MyAssistant(BaseAssistant):
+    def __init__(self, chat_history: ChatHistory, config: dict, log: logging.Logger):
+        super().__init__(config, log)
         self.executor = None
         self.model = None
         self.messages = []
         self.context = ""
-    
+        self.chat_history = chat_history
+
     def set_executor(self, executor: Executor):
         self.executor = executor
-    
+
     def set_model(self, model: BaseModel):
         self.model = model
 
-    def setup_messages(self, message:str):
+    def setup_messages(self, message: str):
         try:
             prompt = self.executor.get_prompt()
             context = self.executor.get_context()
@@ -48,11 +48,29 @@ class MyAssistant:
         except Exception as e:
             self.log.error(f"Error setting up messages: {e}")
             return None
-        
+
+    def setup_messages_with_context(self, message: str, context: str):
+        try:
+            prompt = self.executor.get_prompt()
+            context = self.executor.get_context()
+            message_template = f"""context：{context}
+                task: {message}"""
+            messages = [
+                SystemMessage(content=prompt),
+                *self.chat_history.get_full_history(),
+                HumanMessage(
+                    content=message_template
+                ),
+            ]
+            return messages
+        except Exception as e:
+            self.log.error(f"Error setting up messages: {e}")
+            return None
+
     def ask(self, message):
         if not self.executor:
             raise ValueError("Executor is not set")
-        
+
         # Pass the function result back to the model for further processing
         tool_definitions = self.executor.get_tool_definition()
         self.messages = self.convert_messages_for_openai(self.setup_messages(message))
@@ -61,7 +79,7 @@ class MyAssistant:
         # check if GPT wanted to call a function
         while response.choices[0].finish_reason == "tool_calls":
             response_message = response.choices[0].message
-            
+
             # call the function
             function_name = response_message.tool_calls[0].function.name
             function_to_call = self.executor.get_function(function_name)
@@ -72,7 +90,7 @@ class MyAssistant:
             function_args = json.loads(response_message.tool_calls[0].function.arguments)
             if self.check_args(function_to_call, function_args) is False:
                 return "Invalid number of arguments for function: " + function_name
-            function_response=self.executor.execute(function_name, **function_args)
+            function_response = self.executor.execute(function_name, **function_args)
             print(f"Function call: {function_name} with arguments: {function_args}")
             # print(f"Return: {function_response}")
 
@@ -109,6 +127,66 @@ class MyAssistant:
         self.chat_history.add_ai_message(anwser)
         return anwser
     
+    async def aask(self, message):
+        if not self.executor:
+            raise ValueError("Executor is not set")
+
+        # Pass the function result back to the model for further processing
+        tool_definitions = self.executor.get_tool_definition()
+        self.messages = self.convert_messages_for_openai(self.setup_messages(message))
+        response = await self.model.aask(self.messages, tool_definitions)
+
+        # check if GPT wanted to call a function
+        while response.choices[0].finish_reason == "tool_calls":
+            response_message = response.choices[0].message
+
+            # call the function
+            function_name = response_message.tool_calls[0].function.name
+            function_to_call = self.executor.get_function(function_name)
+            if function_to_call is None:
+                return "Function not found: " + function_name
+
+            # verify function has correct number of arguments
+            function_args = json.loads(response_message.tool_calls[0].function.arguments)
+            if self.check_args(function_to_call, function_args) is False:
+                return "Invalid number of arguments for function: " + function_name
+            function_response = self.executor.execute(function_name, **function_args)
+            print(f"Function call: {function_name} with arguments: {function_args}")
+            # print(f"Return: {function_response}")
+
+            # send the info on the function call and function response to GPT
+            # adding assistant response to messages
+            self.messages.append(
+                {
+                    "role": response_message.role,
+                    "function_call": {
+                        "name": response_message.tool_calls[0].function.name,
+                        "arguments": response_message.tool_calls[0].function.arguments,
+                    },
+                    "content": None,
+                }
+            )
+
+            # adding function response to messages
+            self.messages.append(
+                {
+                    "role": "function",
+                    "name": function_name,
+                    "content": function_response,
+                }
+            )  # extend conversation with function response
+
+            # print("Messages in next request:")
+            # for message in self.messages:
+            #     print(message)
+            # print()
+            response = await self.model.aask(self.messages, tool_definitions)
+
+        anwser = response.choices[0].message.content.strip()
+        self.chat_history.add_user_message(message)
+        self.chat_history.add_ai_message(anwser)
+        return anwser
+
     def convert_messages_for_openai(self, messages):
         openai_messages = []
         for msg in messages:

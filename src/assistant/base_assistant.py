@@ -7,7 +7,7 @@ from openai.types.chat import (
 )
 import logging
 
-class BaseModel(ABC):
+class BaseAssistant(ABC):
     def __init__(self, config: dict, log: logging.Logger):
         self.config = config
         self.log = log
@@ -15,16 +15,7 @@ class BaseModel(ABC):
     @abstractmethod
     def ask(self, question: str) -> str:
         pass
-    
-    @abstractmethod
-    async def aask(self, question: str) -> str:
-        pass
 
     @abstractmethod
-    def ask(self, messages, 
-            tools_definitions) -> ChatCompletion:
-        pass
-
-    @abstractmethod
-    def setup_model(self):
-        pass    
+    async def aask(self, question:str) -> str:
+        pass   
