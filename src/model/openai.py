@@ -34,7 +34,7 @@ class OpenAI(BaseModel):
     async def aask(self, messages: Iterable[ChatCompletionMessageParam],
             tools_definitions: Iterable[ChatCompletionToolParam]) -> str:
         try:
-            response = await self.client_async.completions.create(
+            response = await self.client_async.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 tools=tools_definitions,

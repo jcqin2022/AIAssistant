@@ -150,7 +150,7 @@ class MultiAssistant(BaseAssistant):
 
         for line in lines:
             line = line.strip()
-            if line.startswith("任务列表：") or line.startswith("2. 任务列表："):
+            if line.count("任务列表") > 0 :
                 task_section = True
                 continue
             if task_section and line.startswith("- "):

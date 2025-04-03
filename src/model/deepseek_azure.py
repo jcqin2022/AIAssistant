@@ -1,4 +1,5 @@
 # Install the following dependencies: azure.identity and azure-ai-inference
+import asyncio
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage, ChatCompletionsToolChoicePreset, ChatCompletionsToolDefinition, FunctionDefinition
 from azure.core.credentials import AzureKeyCredential
@@ -39,11 +40,16 @@ class DeepSeek(BaseModel):
     async def aask(self, messages: Iterable[ChatCompletionMessageParam],
             tools_definitions: Iterable[ChatCompletionToolParam]) -> str:
         try:
-            response = self.client.complete(
-                messages=messages,
-                model = self.model_name,
-                tools=tools_definitions,
-                tool_choice=ChatCompletionsToolChoicePreset.AUTO,
+            loop = asyncio.get_event_loop()
+            # 将同步方法包装到线程池中执行
+            response = await loop.run_in_executor(
+                None,  # 使用默认线程池
+                lambda: self.client.complete(
+                    messages=messages,
+                    model=self.model_name,
+                    tools=tools_definitions,
+                    tool_choice=ChatCompletionsToolChoicePreset.AUTO,
+                )
             )
             return response
         except Exception as e:
