@@ -4,7 +4,7 @@
 # execute_script(): script string will be as argument, check windows or linux, if windows, use cmd to execute, but for linue, adapt bash and return the result.
 import os
 import subprocess
-from excutor.executor import Executor
+from .executor import Executor
 import logging
 import json
 

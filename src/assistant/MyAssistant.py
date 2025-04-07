@@ -12,7 +12,7 @@ import inspect
 import logging
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from chat_history import ChatHistory
-from excutor.executor import Executor
+from ..executor.executor import Executor
 from model.base_model import BaseModel
 from assistant.base_assistant import BaseAssistant
 
@@ -144,13 +144,17 @@ class MyAssistant(BaseAssistant):
             function_name = response_message.tool_calls[0].function.name
             function_to_call = self.executor.get_function(function_name)
             if function_to_call is None:
+                self.log.error(f"Function not found: {function_name}")
                 return "Function not found: " + function_name
 
             # verify function has correct number of arguments
             function_args = json.loads(response_message.tool_calls[0].function.arguments)
             if self.check_args(function_to_call, function_args) is False:
                 return "Invalid number of arguments for function: " + function_name
-            function_response = self.executor.execute(function_name, **function_args)
+            if self.executor.is_async():
+                function_response = await self.executor.aexecute(function_name, **function_args)
+            else:
+                function_response = self.executor.execute(function_name, **function_args)
             print(f"Function call: {function_name} with arguments: {function_args}")
             # print(f"Return: {function_response}")
 

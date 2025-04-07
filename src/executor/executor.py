@@ -31,5 +31,14 @@ class Executor:
         else:
             raise ValueError(f"Function '{function_name}' not found in methods.")
         
+    async def aexecute(self, function_name, *args, **kwargs):
+        if function_name in self.methods:
+            return await self.methods[function_name](*args, **kwargs)
+        else:
+            raise ValueError(f"Function '{function_name}' not found in methods.")
+        
     def get_function(self, function_name):
         return self.methods.get(function_name, None)
+    
+    def is_async(self):
+        return False

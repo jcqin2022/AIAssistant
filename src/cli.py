@@ -8,7 +8,8 @@ from .assist_creator import AssistantCreator
 
 
 def run_async(assistant, question):
-    return asyncio.run(assistant.aask(question))
+    # return asyncio.run(assistant.aask(question))
+    return asyncio.run(assistant.aask_with_scheduler(question))
 
 def main():
     try:

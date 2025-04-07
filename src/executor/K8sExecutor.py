@@ -5,7 +5,7 @@
 
 import os
 import subprocess
-from excutor.executor import Executor
+from .executor import Executor
 import logging
 import json
 

@@ -1,8 +1,10 @@
 import logging
 from .assistant.MyAssistant import MyAssistant
 from .assistant.MutiAssistant import MultiAssistant
-from .excutor.PCExecutor import PCExecutor
-from .excutor.K8sExecutor import K8sExecutor
+from .executor.PCExecutor import PCExecutor
+from .executor.K8sExecutor import K8sExecutor
+from .executor.mgr_exec import ManagerExecutor
+from .executor.schd_exec import SchedulerExecutor
 from .model.openai import OpenAI
 from .model.deepseek_azure import DeepSeek
 from chat_history import ChatHistory
@@ -10,6 +12,8 @@ from chat_history import ChatHistory
 # Constants for executor and model names
 EXECUTOR_PC = "pc"
 EXECUTOR_K8S = "k8s"
+EXECUTOR_MGR = "manager"
+EXECUTOR_SCHD = "scheduler"
 
 MODEL_OPENAI = "openai"
 MODEL_DEEPSEEK = "deepseek"
@@ -20,7 +24,9 @@ class AssistantCreator:
         self.log = log
         self.executors = {
             "pc": PCExecutor,
-            "k8s": K8sExecutor
+            "k8s": K8sExecutor,
+            "manager": ManagerExecutor,
+            "scheduler": SchedulerExecutor
         }
         self.models = {
             "openai": OpenAI,
@@ -72,8 +78,16 @@ class AssistantCreator:
         # Initialize the assistant
         chat_history = ChatHistory(self.config)
         assistant = MyAssistant(chat_history, self.config, self.log)
-        self.setup_executor(assistant, EXECUTOR_PC)
+        self.setup_executor(assistant, EXECUTOR_MGR)
         self.setup_model(assistant, MODEL_DEEPSEEK)
+        return assistant
+    
+    def create_scheduler(self):
+        # Initialize the assistant
+        chat_history = ChatHistory(self.config)
+        assistant = MyAssistant(chat_history, self.config, self.log)
+        self.setup_executor(assistant, EXECUTOR_SCHD)
+        self.setup_model(assistant, MODEL_OPENAI)
         return assistant
     
     def create_worker(self):
@@ -96,5 +110,8 @@ class AssistantCreator:
         # Initialize the assistant
         chat_history = ChatHistory(self.config)
         assistant = MultiAssistant(chat_history, self.config, self.log)
-        assistant.setup_manager()
+        manager = self.create_manager()
+        scheduler = self.create_scheduler()
+        assistant.set_manager(manager)
+        assistant.set_scheduler(scheduler)
         return assistant
