@@ -55,8 +55,73 @@ class PDFSplitter:
                 pages=range(start_page, end_page),
                 output_path=f"{output_dir}/{title}.pdf"
             )
+    
+    def split_by_chapter(self, output_dir: str, chapter: str, level: int = 1):
+        """基于书签层级拆分[1,5](@ref)"""
+        toc = self.doc.get_toc()
+        if not toc:
+            raise ValueError("PDF 无书签目录")
+        chapters = []
+        target_chapter = None
+        current_chapter = []
+        for entry in toc:
+            lv = entry[0]
+            ch = entry[1]
+            if ch == chapter:  # 根据层级判断章节
+                current_chapter = [entry]
+                target_chapter = entry
+            elif target_chapter and lv == level:
+                current_chapter.append(entry)
+            elif target_chapter and lv > level:
+                current_chapter.append(entry)
+                continue
+            elif target_chapter and lv < level:
+                if current_chapter:
+                    chapters.append(current_chapter)
+                break
+        
+        if len(chapters) > 0:
+            target_chapter = chapters[0]
+        else:
+            raise ValueError("未找到指定章节")
+        chapter_title = target_chapter[0][1]
+        chapter_dir = os.path.join(output_dir, chapter_title.replace(" ", "_").replace("/", "_"))
+        os.makedirs(chapter_dir, exist_ok=True)
+        for i, subchap in enumerate(target_chapter):
+            if subchap[0] != level:
+                continue
+            lv = subchap[0]
+            title = subchap[1]
+            page = subchap[2]    
+            index_start = self.find_valid_page_in_subchap(target_chapter, i)
+            start_page = target_chapter[index_start][2] - 1  # 页码从0开始
+            next_sub_chap = None
+            next_sub_chap_index = 0
+            for j, sub_chap in enumerate(target_chapter[i+1:], start=i+1):
+                if sub_chap[0] == level:
+                    next_sub_chap_index = j
+                    next_sub_chap = sub_chap
+                    break
+            if next_sub_chap is None:
+                last_sub_chap_index = len(target_chapter) - 1
+                end_page = target_chapter[last_sub_chap_index][2]
+            else:
+                index_end = self.find_valid_page_in_subchap(target_chapter, next_sub_chap_index)
+                end_page = target_chapter[index_end][2]-1
+            # 创建以章节标题命名的目录
+            self._save_chunk(
+            pages=range(start_page, end_page),
+            output_path=f"{chapter_dir}/{title}.pdf"
+            )
+
     def find_valid_page_in_chap(self, chap) -> int:
         index = 0
+        while index < len(chap) and chap[index][2] < 0:
+                index += 1
+        return index
+    
+    def find_valid_page_in_subchap(self, chap, curr_index) -> int:
+        index = curr_index
         while index < len(chap) and chap[index][2] < 0:
                 index += 1
         return index
@@ -96,11 +161,9 @@ class PDFSplitter:
             )
 
 # ----------------- 使用示例 -----------------
-#if __name__ == "__main__":
-#    splitter = PDFSplitter("doc/input.pdf")
-    
-    # 模式选择
-#   splitter.split_by_bookmarks("output/bookmarks")  # 按一级书签拆分
-    #splitter.split_by_content("output/sections")     # 按正则识别章节
-    #splitter.split_by_pages("output/chunks")        # 每10页拆分
-    #splitter.split_custom([(1,5), (6,10)], "output/custom") # 自定义范围
+if __name__ == "__main__":
+    splitter = PDFSplitter("azure-aks.pdf")
+    #模式选择
+    #splitter.split_by_bookmarks("output/") 
+    #splitter.split_by_chapter("output/", "操作指南", 2) 
+    splitter.split_by_chapter("output/", "安全性", 3) 
