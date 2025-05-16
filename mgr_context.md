@@ -1,1 +1,0 @@
-调用tool definitions中的函数获得本机的信息

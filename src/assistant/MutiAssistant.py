@@ -64,15 +64,8 @@ class MultiAssistant(BaseAssistant):
 
         # 第一步：使用deepseek确认意图并生成任务列表
         self.log.info("Step 1: Identifying intent and generating task list...")
-        intent_prompt = f"""请分析以下用户问题的意图，并将其分解为具体的任务列表。
-            用户问题：{message}
-
-            请按照以下格式返回：
-            1. 意图分析：[简要分析用户意图]
-            2. 任务列表：
-            - 任务1
-            - 任务2
-            ..."""
+        intent_prompt = f"""请分析以下用户问题的意图，并将其分解为具体的任务。
+            用户问题：{message}"""
         intent_response = await self._process_manager_task(intent_prompt)
         self.log.debug(f"Intent response: {intent_response}")
 
@@ -112,18 +105,13 @@ class MultiAssistant(BaseAssistant):
 
         # 第三步：使用deepseek审查和修正结果
         self.log.info("Step 3: Reviewing and refining results...")
-        review_prompt = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。如果不正确，请修改背景信息后重新生成答案。
+        review_prompt = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。如果不正确，请指出原因。
             原始问题：{message}
             任务列表：
             {'\n'.join(f'- {task}' for task in tasks)}
 
             任务执行结果：
-            {json.dumps(task_results, indent=2, ensure_ascii=False)}
-
-            请按照以下步骤操作：
-            1. 评估每个任务结果是否正确
-            2. 对于不正确的结果，分析原因并修改背景信息
-            3. 重新生成更准确的答案"""
+            {json.dumps(task_results, indent=2, ensure_ascii=False)}"""
 
         reviewed_response = await self._process_manager_task(review_prompt)
         self.log.debug(f"Reviewed response: {reviewed_response}")
@@ -135,8 +123,7 @@ class MultiAssistant(BaseAssistant):
             任务执行结果：
             {json.dumps(task_results, indent=2, ensure_ascii=False)}
             审查反馈：
-            {reviewed_response}
-            请提供清晰、准确的最终答案。"""
+            {reviewed_response}"""
 
         final_answer = await self._process_manager_task(summary_prompt)
 
@@ -155,47 +142,44 @@ class MultiAssistant(BaseAssistant):
 
         # 第一步：使用deepseek确认意图并生成任务列表
         self.log.info("Step 1: Identifying intent and generating task list...")
-        intent_prompt = f"""请分析以下用户问题的意图，并将其分解为具体的任务列表。
-            用户问题：{message}
-
-            请按照以下格式返回：
-            1. 意图分析：[简要分析用户意图]
-            2. 任务列表：
-            - 任务1
-            - 任务2
-            ..."""
+        intent_prompt = f"""请分析以下用户问题的意图，并将其分解为具体的任务。
+            用户问题：{message}"""
         intent_response = await self._process_manager_task(intent_prompt)
         self.log.debug(f"Intent response: {intent_response}")
 
         # 解析任务列表
-        task_result = await self.scheduler.aask(intent_response)
+        tasks = self._parse_task_list(intent_response)
+        if tasks:
+            self.log.info(f"start processing tasks. tasks: {tasks}")
+            task_result = await self.scheduler.aask(intent_response)
 
-        # 第二步：使用deepseek审查和修正结果
-        self.log.info("Step 2: Reviewing and refining results...")
-        review_prompt = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。如果不正确，请修改背景信息后重新生成答案。
-            任务列表：
-            {intent_response}
+            # 第二步：使用deepseek审查和修正结果
+            self.log.info("Step 2: Reviewing and refining results...")
+            review_prompt = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。
+                任务列表：
+                {intent_response}
 
-            任务执行结果：
-            {task_result}
+                任务执行结果：
+                {task_result}
 
-            请按照以下步骤操作：
-            1. 评估每个任务结果是否正确
-            2. 对于不正确的结果，分析原因并修改背景信息
-            3. 重新生成更准确的答案"""
+                请按照以下步骤操作：
+                1. 评估每个任务结果是否正确
+                2. 对于不正确的结果，分析原因"""
 
-        reviewed_response = await self._process_manager_task(review_prompt)
-        self.log.debug(f"Reviewed response: {reviewed_response}")
+            reviewed_response = await self._process_manager_task(review_prompt)
+            self.log.debug(f"Reviewed response: {reviewed_response}")
 
-        # 第三步：使用deepseek总结最终答案
-        self.log.info("Step 3: Generating final answer...")
-        summary_prompt = f"""请根据以下信息总结出最终答案回答用户问题：
-            用户原始问题：{message}
-            任务执行结果：
-            {task_result}
-            审查反馈：
-            {reviewed_response}
-            请提供清晰、准确的最终答案。"""
+            # 第三步：使用deepseek总结最终答案
+            self.log.info("Step 3: Generating final answer...")
+            summary_prompt = f"""请根据以下信息总结出最终答案：
+                用户原始问题：{message}
+                任务结果：
+                {task_result}
+                审查反馈：
+                {reviewed_response}"""
+        else:
+            self.log.info("No tasks found, using default response.")
+            summary_prompt = f"""不需要分析和拆解，现在直接回答用户问题"""
 
         final_answer = await self._process_manager_task(summary_prompt)
 

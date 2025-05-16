@@ -2,7 +2,7 @@ import asyncio
 from .logger import setup_logger
 from src import __version__
 import json
-from .client.math_client import MathClient
+# from .client.math_client import MathClient
 import logging
 from .assist_creator import AssistantCreator
 
@@ -23,16 +23,22 @@ def main():
         # client = MathClient(config, log)
         # client.run("请计算 (3 + 5) × 12 的结果")
         creator = AssistantCreator(config, log)
-        # assistant = creator.create_assistant_with_input()
-        assistant = creator.create_muti_assistant()
+        # Initialize the assistant
+        question_type = input("Do you have a 1: simple or a 2: complex question?: ").strip().lower()
+        if question_type == "1":
+            assistant = creator.create_assistant_with_input()
+        else:
+            assistant = creator.create_muti_assistant()
         # Start the assistant
         while True:
             user_input = input("You << ")
             if user_input.lower() == 'q':
                 print("Goodbye!")
                 break
-            # response = assistant.ask(user_input)
-            response = run_async(assistant, user_input)
+            if question_type == "1":
+                response = assistant.ask(user_input)
+            else:
+                response = run_async(assistant, user_input)
             print(f"Assistant >> {response}")
     except Exception as e:
         print(f"Exception in main(): {e}")

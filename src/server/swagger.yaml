@@ -1,0 +1,195 @@
+openapi: 3.0.0
+info:
+  title: Whiteboard API
+  description: API for managing and drawing shapes on a collaborative whiteboard.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+paths:
+  /history:
+    get:
+      summary: Get drawing history
+      description: Retrieve the history of all shapes drawn on the whiteboard.
+      responses:
+        200:
+          description: A list of shapes in the drawing history.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      description: The type of the shape (e.g., line, circle, rect).
+                    start:
+                      type: array
+                      items:
+                        type: number
+                      description: The starting point of the shape.
+                    end:
+                      type: array
+                      items:
+                        type: number
+                      description: The ending point of the shape.
+                    color:
+                      type: string
+                      description: The color of the shape in hexadecimal format.
+
+  /clear:
+    post:
+      summary: Clear the whiteboard
+      description: Clear all shapes from the whiteboard and reset the history.
+      responses:
+        200:
+          description: Confirmation that the whiteboard has been cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: cleared
+
+  /draw_line:
+    post:
+      summary: Draw a line
+      description: Draw a line on the whiteboard.
+      parameters:
+        - name: x
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The x-coordinate of the starting point.
+        - name: y
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The y-coordinate of the starting point.
+        - name: width
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The width of the line.
+        - name: height
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The height of the line.
+        - name: color
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The color of the line in hexadecimal format.
+      responses:
+        200:
+          description: Confirmation that the line has been drawn.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: line drawn
+
+  /draw_ellipse:
+    post:
+      summary: Draw an ellipse
+      description: Draw an ellipse on the whiteboard.
+      parameters:
+        - name: x
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The x-coordinate of the center.
+        - name: y
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The y-coordinate of the center.
+        - name: rx
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The x-radius of the ellipse.
+        - name: ry
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The y-radius of the ellipse.
+        - name: color
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The color of the ellipse in hexadecimal format.
+      responses:
+        200:
+          description: Confirmation that the ellipse has been drawn.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ellipse drawn
+
+  /draw_rect:
+    post:
+      summary: Draw a rectangle
+      description: Draw a rectangle on the whiteboard.
+      parameters:
+        - name: x
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The x-coordinate of the top-left corner.
+        - name: y
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The y-coordinate of the top-left corner.
+        - name: width
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The width of the rectangle.
+        - name: height
+          in: query
+          required: true
+          schema:
+            type: number
+          description: The height of the rectangle.
+        - name: color
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The color of the rectangle in hexadecimal format.
+      responses:
+        200:
+          description: Confirmation that the rectangle has been drawn.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: rectangle drawn
