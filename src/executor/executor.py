@@ -7,6 +7,8 @@ class Executor:
     def __init__(self):
         self.methods = {
         }
+        self.prompt = ""
+        self.context = ""
 
     def get_prompt(self, file_path):
         try:

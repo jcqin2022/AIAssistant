@@ -13,7 +13,6 @@ class K8sExecutor(Executor):
     def __init__(self, config:dict, log: logging.Logger):
         self.config = config
         self.log = log
-        self.prompt = ""
         super().__init__()
         self.update_method_list()
 
@@ -30,7 +29,7 @@ class K8sExecutor(Executor):
     def get_context(self):
         if(self.context != ""):
             return self.context
-        self.context = super().get_prompt('k8s_context.md')
+        self.context = super().get_context('k8s_context.md')
         return self.context
 
     def get_tool_definition(self):

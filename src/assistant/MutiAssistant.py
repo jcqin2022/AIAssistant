@@ -132,62 +132,7 @@ class MultiAssistant(BaseAssistant):
 
         return final_answer
 
-    async def aask_with_scheduler(self, message: str) -> str:
-        from ..assist_creator import AssistantCreator
-        self.creator = AssistantCreator(self.config, self.log)
-        """处理用户问题的主流程"""
-        if not self.manager:
-            raise ValueError("manager is not set")
-
-        # 第一步：使用deepseek确认意图并生成任务列表
-        self.log.info("Step 1: Identifying intent and generating task list...")
-        intent_prompt = f"""请分析以下用户问题的意图，并将其分解为具体的任务。
-            用户问题：{message}"""
-        intent_response = await self._process_manager_task(intent_prompt)
-        self.log.debug(f"Intent response: {intent_response}")
-
-        # 解析任务列表
-        tasks = self._parse_task_list(intent_response)
-        if tasks:
-            self.log.info(f"start processing tasks. tasks: {tasks}")
-            task_result = await self.scheduler.aask(intent_response)
-
-            # 第二步：使用deepseek审查和修正结果
-            self.log.info("Step 2: Reviewing and refining results...")
-            review_prompt = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。
-                任务列表：
-                {intent_response}
-
-                任务执行结果：
-                {task_result}
-
-                请按照以下步骤操作：
-                1. 评估每个任务结果是否正确
-                2. 对于不正确的结果，分析原因"""
-
-            reviewed_response = await self._process_manager_task(review_prompt)
-            self.log.debug(f"Reviewed response: {reviewed_response}")
-
-            # 第三步：使用deepseek总结最终答案
-            self.log.info("Step 3: Generating final answer...")
-            summary_prompt = f"""请根据以下信息总结出最终答案：
-                用户原始问题：{message}
-                任务结果：
-                {task_result}
-                审查反馈：
-                {reviewed_response}"""
-        else:
-            self.log.info("No tasks found, using default response.")
-            summary_prompt = f"""不需要分析和拆解，现在直接回答用户问题"""
-
-        final_answer = await self._process_manager_task(summary_prompt)
-
-        # 更新聊天历史
-        self.update_chat_history(message, final_answer)
-
-        return final_answer
-
-    async def aask_with_scheduler2(self, question: str) -> str:
+    async def aask_with_scheduler(self, question: str) -> str:
         # 第一步：确认意图并生成任务列表
         self.log.info("Step 1: Identifying intent and generating task list...")
         tasks_description = await self.anlyze_requirements(question)
@@ -229,16 +174,6 @@ class MultiAssistant(BaseAssistant):
         self.log.debug(f"Intent response: {intent_response}")
         if self.check_req_confirmation(intent_response):
             return ''
-        # # 第二步：生成任务列表
-        # intent_question = f"""根据沟通结果，然后生成具体的任务列表。
-        #     沟通结果：{intent_response}
-        #     如果需要任务列表，严格按照如下格式生成， 任务数量尽量小：
-        #     任务列表：
-        #     - 任务1: 执行
-        #     - 任务2: 测试
-        #     """
-        # intent_response = await self._process_manager_task(intent_question)
-        # self.log.debug(f"Intent response: {intent_response}")
         return intent_response
     
     async def execute_tasks(self, tasks_description: str) -> str:
@@ -248,9 +183,8 @@ class MultiAssistant(BaseAssistant):
 
         tasks_result = ""
         # 解析任务列表
-        tasks = self._parse_task_list(tasks_description)
-        if tasks:
-            self.log.info(f"start processing tasks. tasks: {tasks}")
+        hasTasks = self.check_task_confirmation(tasks_description)
+        if hasTasks:
             tasks_result = await self.scheduler.aask(tasks_description)
         else:
             self.log.info("No tasks found, using default response.")
@@ -308,6 +242,33 @@ class MultiAssistant(BaseAssistant):
                 break
 
         return tasks
+    
+    def _parse_task_list2(self, task_description: str) -> List[str]:
+        # Remove <think> sections from intent_response
+        task_description = re.sub(r"<think>.*?</think>", "", task_description, flags=re.DOTALL)
+        # 匹配任务模式的正则表达式（支持多任务连续匹配）
+        task_pattern = re.compile(
+            r'^任务\d+:.*?$[\n\r]+^└─ 依赖关系：.*?$',
+            re.MULTILINE | re.DOTALL
+        )
+        tasks = []
+        dependencies = []
+        # 分割所有任务块
+        for task_block in task_pattern.finditer(task_description):
+            block = task_block.group(0)
+            
+            # 提取任务描述行
+            task_line = re.search(r'^(任务\d+:.*?)(?=\n|$)', block, re.MULTILINE).group(0)
+            tasks.append(task_line.strip())
+            
+            # 提取依赖描述并解析依赖项
+            dep_match = re.search(r'└─ 依赖关系：(.*?)$', block, re.MULTILINE)
+            dep_desc = dep_match.group(1).strip() if dep_match else ''
+            
+            # 从依赖描述中提取任务编号（支持中文数字）
+            dep_tasks = re.findall(r'任务\d+', dep_desc)
+            dependencies.append(dep_tasks)
+        return tasks
 
     def _convert_messages_for_openai(self, messages) -> List[Dict]:
         """转换消息格式为OpenAI API需要的格式"""
@@ -348,3 +309,13 @@ class MultiAssistant(BaseAssistant):
         if QUSTION_CONFIRM in requirements:
             return True
         return False    
+    
+    def check_task_confirmation(self, requirements: str) -> bool:
+        """检查是否包含任务列表"""
+        if not requirements:
+            return True
+        requirements = re.sub(r"<think>.*?</think>", "", requirements, flags=re.DOTALL)
+        # 检查是否有确认问题
+        if TASK_LIST in requirements:
+            return True
+        return False
