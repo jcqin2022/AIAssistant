@@ -6,9 +6,10 @@ from openai.types.chat import (
     ChatCompletion
 )
 import logging
-
+from ..chat_history import ChatHistory
 class BaseAssistant(ABC):
-    def __init__(self, config: dict, log: logging.Logger):
+    def __init__(self, chat_history: ChatHistory, config: dict, log: logging.Logger):
+        self.chat_history = chat_history
         self.config = config
         self.log = log
 
@@ -18,4 +19,11 @@ class BaseAssistant(ABC):
 
     @abstractmethod
     async def aask(self, question:str) -> str:
-        pass   
+        pass  
+
+    def update_chat_history(self, question: str, answer: str):
+        self.chat_history.add_user_message(question)
+        self.chat_history.add_ai_message(answer) 
+
+    def get_chat_history(self) -> Iterable[ChatCompletionMessageParam]:
+        return self.chat_history.get_full_history()

@@ -5,6 +5,7 @@ import subprocess
 from typing import List
 from .executor import Executor
 from ..assistant.base_assistant import BaseAssistant
+from ..const import *
 import logging
 import json
 
@@ -91,44 +92,51 @@ class SchedulerExecutor(Executor):
         return result
         
     
-    async def execute_multiple_tasks(self, tasks: List[str], context: str) -> dict:
+    async def execute_multiple_tasks(self, tasks: List[str], context: str) -> str:
         self.log.info("Executing tasks asynchronously...")
         workers = {}
-        for i, task in enumerate(tasks):
-            worker_name = f"worker_{i+1}"
-            workers[worker_name] = self.creator.create_worker()
-        self.log.info(f"Workers created: {list(workers.keys())}")
+        try:
+            for i, task in enumerate(tasks):
+                worker_name = f"worker_{i+1}"
+                workers[worker_name] = self.creator.create_worker()
+                self.log.debug(f"Workers created: {worker_name}-{task}")
 
-        task_results = {}
+            task_results = ""
 
-        # 创建所有任务的协程
-        task_coroutines = []
-        for i, task in enumerate(tasks):
-            context = f"背景：{context}\n当前任务：{task}\n任务序号：{i+1}/{len(tasks)}"
-            task_coroutines.append(self._process_task(task, context, workers[f"worker_{i+1}"]))
+            # 创建所有任务的协程
+            task_coroutines = []
+            for i, task in enumerate(tasks):
+                context = f"背景：{context}\n当前任务：{task}\n任务序号：{i+1}/{len(tasks)}"
+                task_coroutines.append(self._process_task(task, context, workers[f"worker_{i+1}"]))
 
-        # 并行执行所有任务
-        results = await asyncio.gather(*task_coroutines, return_exceptions=True)
+            # 并行执行所有任务
+            results = await asyncio.gather(*task_coroutines, return_exceptions=True)
 
-        # 处理结果
-        for i, (task, result) in enumerate(zip(tasks, results)):
-            if isinstance(result, Exception):
-                self.log.error(f"Task {i+1} failed: {str(result)}")
-                task_results[f"任务{i+1}"] = f"执行失败: {str(result)}"
-            else:
-                task_results[f"任务{i+1}"] = result
-        self.log.info(f"Task results: {task_results}")
-        return task_results
+            # 处理结果
+            for i, (task, result) in enumerate(zip(tasks, results)):
+                if isinstance(result, Exception):
+                    self.log.error(f"{task} failed: {str(result)}")
+                    task_results += f"{TASK}{i}:\n{task}\n{TASK_FAILED}:{result}\n\n"
+                else:
+                    task_results += f"{TASK}{i}:\n{task}\n{RESULT}:{result}\n\n"
+            self.log.info(f"Task results: {task_results}")
+            return task_results
+        except Exception as e:
+            self.log.error(f"Executing multi tasks: {str(e)}")
+            return str(e)
     
     async def _process_task(self, task: str, context: str, assistant: BaseAssistant) -> str:
         if not assistant:
             raise ValueError(f"Assistant for task {task} not found")
-
-        # 设置消息
-        message = f"""context：{context}
-            task：{task}"""
-        result = await assistant.aask(message)
-        return result
+        try:
+            # 设置消息
+            message = f"""context：{context}
+                task：{task}"""
+            result = await assistant.aask(message)
+            return result
+        except Exception as e:
+            self.log.error(f"Processing task {task}: {str(e)}")
+            return str(e)
     
     def _create_creator(self):
         from ..assist_creator import AssistantCreator

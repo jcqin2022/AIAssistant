@@ -7,9 +7,9 @@ import logging
 from .assist_creator import AssistantCreator
 
 
-def run_async(assistant, question):
-    # return asyncio.run(assistant.aask(question))
-    return asyncio.run(assistant.aask_with_scheduler(question))
+def run_async(multi_assistant, question):
+    # return asyncio.run(multi_assistant.aask(question))
+    return asyncio.run(multi_assistant.aask_with_scheduler2(question))
 
 def main():
     try:
@@ -39,6 +39,7 @@ def main():
                 response = assistant.ask(user_input)
             else:
                 response = run_async(assistant, user_input)
-            print(f"Assistant >> {response}")
+            if response:
+                print(f"Assistant >> {response}")
     except Exception as e:
         print(f"Exception in main(): {e}")

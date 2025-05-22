@@ -60,11 +60,14 @@ class PCExecutor(Executor):
         }]
 
     def execute_script(self, script):
+        self.log.debug(f"Executing script: {script}")
         if os.name == 'nt':  # Windows
             result = subprocess.run(['powershell', '-Command', script], capture_output=True, text=True)
         else:  # Linux
             result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
-        return result.stdout
+        result = result.stdout
+        self.log.debug(f"Script result: {result}")
+        return result
     
     def get_system(self):
         if os.name == 'nt':  # Windows

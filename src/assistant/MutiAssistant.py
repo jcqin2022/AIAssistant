@@ -3,7 +3,9 @@ import json
 import inspect
 import logging
 import asyncio
+import re
 from typing import List, Dict, Optional
+from const import *
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from chat_history import ChatHistory
 from .MyAssistant import MyAssistant
@@ -11,10 +13,9 @@ from .base_assistant import BaseAssistant
 
 class MultiAssistant(BaseAssistant):
     def __init__(self, chat_history: ChatHistory, config: dict, log: logging.Logger):
-        super().__init__(config, log)
+        super().__init__(chat_history, config, log)
         self.config = config
         self.log = log
-        self.chat_history = chat_history
         self.manager_model = None
         self.main_executor = None
         self.manager: MyAssistant= None
@@ -29,7 +30,6 @@ class MultiAssistant(BaseAssistant):
     
     def set_scheduler(self, schduler: BaseAssistant):
         self.scheduler = schduler
-
 
     async def _process_task(self, task: str, context: str, assistant: MyAssistant) -> str:
         """使用指定executor处理单个任务"""
@@ -128,8 +128,7 @@ class MultiAssistant(BaseAssistant):
         final_answer = await self._process_manager_task(summary_prompt)
 
         # 更新聊天历史
-        self.chat_history.add_user_message(message)
-        self.chat_history.add_ai_message(final_answer)
+        self.update_chat_history(message, final_answer)
 
         return final_answer
 
@@ -184,26 +183,126 @@ class MultiAssistant(BaseAssistant):
         final_answer = await self._process_manager_task(summary_prompt)
 
         # 更新聊天历史
-        self.chat_history.add_user_message(message)
-        self.chat_history.add_ai_message(final_answer)
+        self.update_chat_history(message, final_answer)
 
         return final_answer
 
+    async def aask_with_scheduler2(self, question: str) -> str:
+        # 第一步：确认意图并生成任务列表
+        self.log.info("Step 1: Identifying intent and generating task list...")
+        tasks_description = await self.anlyze_requirements(question)
+        if not tasks_description:
+            return ""
+        # 第二步：解析任务并执行
+        self.log.info("Step 1.5: Creating workers for each task...")
+        tasks_result = await self.execute_tasks(tasks_description)
+        if not tasks_result:
+            return tasks_description
+        # 第三步：审查和修正结果
+        # self.log.info("Step 2: Reviewing and refining results...")
+        # reviewed_response = await self.review_and_refine_results(tasks_description, tasks_result)
+        # 第四步：总结最终答案 
+        self.log.info("Step 3: Generating final answer...")
+        final_answer = await self.deliver_results(question, tasks_result, tasks_description)
+        # 更新聊天历史
+        self.update_chat_history(question, final_answer)
+        return final_answer
+
+    async def anlyze_requirements(self, question: str) -> str:
+        """分析需求"""
+        if not self.manager:
+            raise ValueError("manager is not set")
+        # 第一步：确认意图并生成任务列表
+        intent_question = f"""当前阶段一, 首先理解问题并与用户确认，得到准确的意图。
+            用户问题：{question}
+            如果需要确认或用户输入，按照如下格式：
+            确认问题：
+            - 选项1: 具体描述
+            - 选项2: 具体描述
+            如果不需要确认或确认后，继续按下面执行：
+            如果需要任务列表，严格按照如下格式生成， 任务数量尽量小：
+            工作列表：
+            任务1: 执行
+            任务2: 测试
+            """
+        intent_response = await self._process_manager_task(intent_question)
+        self.log.debug(f"Intent response: {intent_response}")
+        if self.check_req_confirmation(intent_response):
+            return ''
+        # # 第二步：生成任务列表
+        # intent_question = f"""根据沟通结果，然后生成具体的任务列表。
+        #     沟通结果：{intent_response}
+        #     如果需要任务列表，严格按照如下格式生成， 任务数量尽量小：
+        #     任务列表：
+        #     - 任务1: 执行
+        #     - 任务2: 测试
+        #     """
+        # intent_response = await self._process_manager_task(intent_question)
+        # self.log.debug(f"Intent response: {intent_response}")
+        return intent_response
+    
+    async def execute_tasks(self, tasks_description: str) -> str:
+        """执行任务"""
+        if not self.scheduler:
+            raise ValueError("scheduler is not set")
+
+        tasks_result = ""
+        # 解析任务列表
+        tasks = self._parse_task_list(tasks_description)
+        if tasks:
+            self.log.info(f"start processing tasks. tasks: {tasks}")
+            tasks_result = await self.scheduler.aask(tasks_description)
+        else:
+            self.log.info("No tasks found, using default response.")
+        return tasks_result
+    
+    async def review_and_refine_results(self, tasks_description, tasks_result: str) -> str:
+        """审查和修正结果"""
+        if not self.manager:
+            raise ValueError("manager is not set")
+        reviewed_response = ""
+        # 审查和修正结果
+        self.log.info("Step 2: Reviewing and refining results...")
+        review_question = f"""请审查以下任务执行结果，确保它们正确回答了原始问题。
+            任务列表：
+            {tasks_description}
+            任务执行结果：
+            {tasks_result}"""
+        reviewed_response = await self._process_manager_task(review_question)
+        self.log.debug(f"Reviewed response: {reviewed_response}")
+        return reviewed_response
+    
+    async def deliver_results(self, question: str, task_result: str, reviewed_response: str) -> str:
+        """交付结果"""
+        if not self.manager:
+            raise ValueError("manager is not set")
+        # 总结最终答案
+        summary_question = f"""当前阶段二，请根据以下信息总结出最终答案回答用户问题：
+            用户原始问题：
+            {question}
+            任务执行结果：
+            {task_result}
+            审查反馈：
+            {reviewed_response}"""
+
+        final_answer = await self._process_manager_task(summary_question)
+        self.log.info(f"Final answer: {final_answer}")
+        return final_answer
+    
     def _parse_task_list(self, intent_response: str) -> List[str]:
         """从意图响应中解析任务列表"""
         tasks = []
+        # Remove <think> sections from intent_response
+        intent_response = re.sub(r"<think>.*?</think>", "", intent_response, flags=re.DOTALL)
         lines = intent_response.split('\n')
         task_section = False
 
         for line in lines:
             line = line.strip()
-            if line.count("任务列表") > 0 :
+            if TASK_LIST in line:
                 task_section = True
                 continue
-            if line.count("依赖关系") > 0 :
-                task_section = True
-                continue
-            if task_section and line.startswith("- "):
+            if task_section and line.startswith(TASK):  # 以-开头的行表示任务
                 tasks.append(line[2:].strip())
             elif task_section and line:  # 非空行但不是以-开头，可能意味着任务列表结束
                 break
@@ -239,3 +338,13 @@ class MultiAssistant(BaseAssistant):
                 return False
 
         return True
+    
+    def check_req_confirmation(self, requirements: str) -> bool:
+        """检查确认问题"""
+        if not requirements:
+            return True
+        requirements = re.sub(r"<think>.*?</think>", "", requirements, flags=re.DOTALL)
+        # 检查是否有确认问题
+        if QUSTION_CONFIRM in requirements:
+            return True
+        return False    

@@ -14,16 +14,15 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from chat_history import ChatHistory
 from ..executor.executor import Executor
 from model.base_model import BaseModel
-from assistant.base_assistant import BaseAssistant
+from .base_assistant import BaseAssistant
 
 class MyAssistant(BaseAssistant):
     def __init__(self, chat_history: ChatHistory, config: dict, log: logging.Logger):
-        super().__init__(config, log)
+        super().__init__(chat_history, config, log)
         self.executor = None
         self.model = None
         self.messages = []
         self.context = ""
-        self.chat_history = chat_history
 
     def set_executor(self, executor: Executor):
         self.executor = executor
@@ -39,7 +38,7 @@ class MyAssistant(BaseAssistant):
                 question：{message}"""
             messages = [
                 SystemMessage(content=prompt),
-                *self.chat_history.get_full_history(),
+                *self.get_chat_history(),
                 HumanMessage(
                     content=message_template
                 ),
@@ -57,7 +56,7 @@ class MyAssistant(BaseAssistant):
                 task: {message}"""
             messages = [
                 SystemMessage(content=prompt),
-                *self.chat_history.get_full_history(),
+                *self.get_chat_history(),
                 HumanMessage(
                     content=message_template
                 ),
@@ -123,8 +122,7 @@ class MyAssistant(BaseAssistant):
             response = self.model.ask(self.messages, tool_definitions)
 
         anwser = response.choices[0].message.content.strip()
-        self.chat_history.add_user_message(message)
-        self.chat_history.add_ai_message(anwser)
+        self.update_chat_history(message, anwser)
         return anwser
     
     async def aask(self, message):
@@ -187,8 +185,7 @@ class MyAssistant(BaseAssistant):
             response = await self.model.aask(self.messages, tool_definitions)
 
         anwser = response.choices[0].message.content.strip()
-        self.chat_history.add_user_message(message)
-        self.chat_history.add_ai_message(anwser)
+        self.update_chat_history(message, anwser)
         return anwser
 
     def convert_messages_for_openai(self, messages):
@@ -217,5 +214,4 @@ class MyAssistant(BaseAssistant):
         for name, param in params.items():
             if param.default is param.empty and name not in args:
                 return False
-
         return True
